@@ -5,7 +5,7 @@ Il materiale inserito in questa repository serve allo scopo di implementare il c
 
 - <tiktok_ig.py> è lo script che effettua il campionamento degli utenti, al suo interno è presente la variabile <absolute_path> da modificare con il path assoluto della directory che contiene lo script
 - <id_users.pkl> contiene id e nickname di circa 11k utenti TikTok ed è usato dallo script <tiktok_ig.py>, deve trovarsi nella stessa directory di tale script
-- <crontask.py> è lo script che inserisce il comando di eseguire il campionamento all'interno della "crontab" di un utente della macchina, utente e comando si possono modificare nello script
+- <crontask.py> è lo script che inserisce il comando di eseguire il campionamento all'interno della "crontab" di un utente della macchina, utente e comando si possono modificare nello script (oltre ovviamente all'orario di partenza e frequenza del campionamento)
 - <ig_accounts.txt> contiene gli account Instagram usati nel campionamento, si consiglia di creare altri account per effettuare il campionamento e modificare la corrispondente struttura dati in <tiktok_ig.py>.
 
 ## Librerie da installare:
