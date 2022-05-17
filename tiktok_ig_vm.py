@@ -12,8 +12,13 @@ from elasticsearch import ConnectionError, ConnectionTimeout, AuthenticationExce
 from instagrapi import Client, exceptions
 
 '''
-    python3 -m pip install instagrapi
+    python3 -m pip install sys
+    python3 -m pip install requests --upgrade
+    python3 -m pip install elasticsearch
+    python3 -m pip install TikTokApi
+    python3 -m pip install instagrapi --upgrade
     python3 -m pip install --upgrade Pillow
+    playwright install-deps
 '''
 
 class CannotIndexDocOnEs(Exception):
