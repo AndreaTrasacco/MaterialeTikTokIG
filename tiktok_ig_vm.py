@@ -25,6 +25,7 @@ class CannotIndexDocOnEs(Exception):
 es_address='http://localhost:9200'
 es = Elasticsearch(es_address)
 list_accounts_to_verify = []
+absolute_path = "/home/atrasacco/TikTokIG/"
 
 settings = {
     "mapping": {
@@ -158,7 +159,7 @@ def load_pickle(path, filename):
         obj= pickle.load(input)
         return obj
 
-setup_logger('execution_log','/home/atrasacco/TikTokIG/execution.log')
+setup_logger('execution_log',absolute_path + 'execution.log')
 logger = logging.getLogger('execution_log')
 
 # create index
@@ -307,7 +308,7 @@ headers_musically = {
 }
 
 
-dict_users = load_pickle("/home/atrasacco/TikTokIG/", "id_users")
+dict_users = load_pickle(absolute_path, "id_users")
 list_usernames = list(dict_users.values())
 
 params_musically_template = {
@@ -465,7 +466,7 @@ def tiktok_info(user_name, user_id):
             #                sys.exit(-1)
             else:
                 list_infos.append(infos)
-                save_pickle(list_infos, '/home/atrasacco/TikTokIG/', 'list_user_infos')
+                save_pickle(list_infos, absolute_path, 'list_user_infos')
                 count += 1
                 if count % 100 == 0:
                     logger.info(f"#users:{count} ")
@@ -533,7 +534,7 @@ def main_info():
                 logger.info(str(e))
     ig_accounts_to_verify["ig_accounts"] = list_accounts_to_verify
     json_object = json.dumps(ig_accounts_to_verify, indent=4)
-    outfile = open("/home/atrasacco/TikTokIG/ig_accounts_to_verify.json", "w")
+    outfile = open(absolute_path + "ig_accounts_to_verify.json", "w")
     outfile.write(json_object)
     outfile.close()
 
@@ -542,7 +543,7 @@ def load_username_IG_on_ES():
     index_name = 'usernames_ig'
     #TODO: recuperare lista di utenti tiktok (tt_user) dal file list_user_infos.pkl, usando il metodo load_pickle(
     # "./", "list_user_infos.pkl")
-    tt_users = load_pickle("/home/atrasacco/TikTokIG/", "list_user_infos")
+    tt_users = load_pickle(absolute_path, "list_user_infos")
     # inizializzo indice per username_IG
     initialize_index(settings, mappings, index_name)
 
