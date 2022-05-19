@@ -12,13 +12,8 @@ from elasticsearch import ConnectionError, ConnectionTimeout, AuthenticationExce
 from instagrapi import Client, exceptions
 
 '''
-    python3 -m pip install sys
-    python3 -m pip install requests --upgrade
-    python3 -m pip install elasticsearch
-    python3 -m pip install TikTokApi
-    python3 -m pip install instagrapi --upgrade
+    python3 -m pip install instagrapi
     python3 -m pip install --upgrade Pillow
-    playwright install-deps
 '''
 
 class CannotIndexDocOnEs(Exception):
@@ -54,26 +49,18 @@ mappings = {
 }
 
 requests_counter = 0  # every n requests --> change account
-ig_accounts = ["accountfortesting04", "accountfortesting07", "accountfortesting08", "accountfortesting10", "accountfortesting11", "accountfortesting14", "accountfortesting15", "accountfortesting16"]
-ig_passwords = ["Andrea12", "Andrea1234", "Andrea12", "Andrea123456", "Andrea12", "Andrea123456", "Andrea12345678", "Andrea12345678"]
+ig_accounts = ["accountfortesting002", "accountfortesting04", "accountfortesting07", "accountfortesting08"]
+ig_passwords = ["Andrea1234", "Andrea12", "Andrea1234", "Andrea12"]
+errors_counter = [0, 0, 0, 0]
 ig_index = 0 # index of current ig_account logged in
 logged = False
 ig_api = Client()
 
-def IG_login(login_attempt, max_retry = 5):
-    global logged, ig_index, ig_accounts, ig_passwords, ig_api, list_accounts_to_verify
-    if login_attempt >= max_retry:
-        login_attempt = 0
-        logger.error("LOGIN ERROR! Reached the max number of attempts with " + ig_accounts[ig_index])
-        list_accounts_to_verify.append(str(ig_accounts[ig_index]))
-        ig_accounts.remove(ig_accounts[ig_index])
-        del ig_passwords[ig_index]
-        if ig_accounts is None or len(ig_accounts) == 0:
-            sys.exit("ERROR! There are no more accounts to log in")
-        ig_index = ig_index % len(ig_accounts)
+def IG_login():
+    global requests_counter, logged, ig_index, ig_accounts, ig_passwords, ig_api
+    requests_counter = 0
     ig_api.login(ig_accounts[ig_index], ig_passwords[ig_index])
     logged = True
-    return login_attempt
 
 
 def IG_logout():
@@ -85,7 +72,6 @@ def IG_logout():
 def getIGFollowerCount(username, max_req_per_account=80, default_wait=6, variation=2, max_retry=3):
     global requests_counter, logged, ig_index, ig_accounts, ig_passwords, ig_api, list_accounts_to_verify
     if requests_counter == max_req_per_account and len(ig_accounts) > 1: # every 'max_req_per_account' --> change ig account (if there are 2 or more ig accounts)
-        requests_counter = 0
         ig_index = (ig_index + 1) % len(ig_accounts)
         if logged:
             IG_logout()
@@ -94,15 +80,13 @@ def getIGFollowerCount(username, max_req_per_account=80, default_wait=6, variati
     login_attempt = -1
     ig_user = {"username_ig": username, "status": None}
     while retry < max_retry:
+        retry += 1
         try:
             if not logged:
-                login_attempt += 1
-                login_attempt = IG_login(login_attempt)
-            login_attempt = -1
+                IG_login()
             requests_counter += 1
-            retry += 1
-            user = ig_api.user_info_by_username(username) # RICHIESTA PRIMA TRAMITE WEB APP POI EVENTUALMENTE TRAMITE MOBILE APP
-            # user = ig_api.user_info_by_username_v1(username) PIU VELOCE, EFFETTUA SOLO RICHIESTA TRAMITE MOBILE APP
+            # user = ig_api.user_info_by_username(username)
+            user = ig_api.user_info_by_username_v1(username)
             ig_user["status"] = "active"
             ig_user["social_id"] = user.pk
             ig_user["name"] = user.full_name
@@ -115,32 +99,60 @@ def getIGFollowerCount(username, max_req_per_account=80, default_wait=6, variati
             break
         except exceptions.ClientConnectionError as e:
             logger.error(e.message)
-            time.sleep(60)
+            time.sleep(20)
             if logged:
+                ig_user["status"] = "unknown (connection error)"
                 IG_logout()
-        except exceptions.ClientError as e:
+        except exceptions.ChallengeError as e: # account error --> remove ig account
             logger.error(str(e.message) + " (USERNAME: " + str(username) + ", ACCOUNT: " + str(ig_accounts[ig_index]) + (", LOGIN_ERROR)" if not logged else ")"))
-            if e.message == "checkpoint_required":
-                ig_index = (ig_index + 1) % len(ig_accounts)
-            elif e.message == "challenge_required" or e.message == "checkpoint_challenge_required":
-                list_accounts_to_verify.append(str(ig_accounts[ig_index]))
-                ig_accounts.remove(ig_accounts[ig_index])
-                del ig_passwords[ig_index]
-                if ig_accounts is None or len(ig_accounts) == 0:
-                    sys.exit("ERROR! There are no more accounts to log in")
-                ig_index = ig_index % len(ig_accounts)
-            elif e.code == 500: # Internal Server Error
-                time.sleep(300) # wait 5 minutes
+            list_accounts_to_verify.append(str(ig_accounts[ig_index]))
+            ig_accounts.remove(ig_accounts[ig_index])
+            del ig_passwords[ig_index]
+            del errors_counter[ig_index]
+            if ig_accounts is None or len(ig_accounts) == 0:
+                sys.exit("ERROR! There are no more accounts to log in")
+            ig_index = ig_index % len(ig_accounts)
+            if logged:
+                ig_user["status"] = "unknown (challenge error)"
+                if len(ig_accounts) > 1:
+                    IG_logout()
+        except exceptions.PrivateError as e:
+            logger.error(str(e.message) + " (USERNAME: " + str(username) + ", ACCOUNT: " + str(ig_accounts[ig_index]) + (", LOGIN_ERROR)" if not logged else ")"))
+            ig_index = (ig_index + 1) % len(ig_accounts) # step to next account
             if logged:
                 ig_user["status"] = "unknown (" + e.message + ")"
                 if len(ig_accounts) > 1:
                     IG_logout()
+        except exceptions.ClientJSONDecodeError as e:
+            logger.error("Json decode error; " + " (USERNAME: " + str(username) + ", ACCOUNT: " + str(ig_accounts[ig_index]) + (", LOGIN_ERROR)" if not logged else ")"))
+            ig_user["status"] = "unknown (json decode error)"
+            break
+        except exceptions.ClientError as e:
+            logger.error(str(e.message) + " (USERNAME: " + str(username) + ", ACCOUNT: " + str(ig_accounts[ig_index]) + (", LOGIN_ERROR)" if not logged else ")"))
+            if logged:
+                ig_user["status"] = "unknown (" + e.message + ")"
+                if len(ig_accounts) > 1:
+                    IG_logout()
+            else:
+                errors_counter[ig_index] += 1
+                if errors_counter[ig_index] == 10:
+                    ig_accounts.remove(ig_accounts[ig_index])
+                    del ig_passwords[ig_index]
+                    del errors_counter[ig_index]
+                    if ig_accounts is None or len(ig_accounts) == 0:
+                        sys.exit("ERROR! There are no more accounts to log in")
+                    ig_index = ig_index % len(ig_accounts)
+                    continue
+            if e.message == "checkpoint_required":
+                ig_index = (ig_index + 1) % len(ig_accounts)
+            elif e.code == 500:  # Internal Server Error
+                time.sleep(300)  # wait 5 minutes
         except Exception as e:
             logger.error(str(e))
-            time.sleep(60)
+            time.sleep(20)
             if logged:
                 IG_logout()
-        time.sleep(default_wait * 10) # wait before the next attempt
+        time.sleep(default_wait * 2) # wait before the next attempt
     return ig_user
 
 from TikTokApi import TikTokApi
@@ -164,7 +176,7 @@ def load_pickle(path, filename):
         obj= pickle.load(input)
         return obj
 
-setup_logger('execution_log',absolute_path + 'execution.log')
+setup_logger('execution_log', absolute_path + 'execution.log')
 logger = logging.getLogger('execution_log')
 
 # create index
@@ -379,7 +391,7 @@ def handle_banned_words(params_musically, user_name):
 def check_username(params_musically, user_id, user_name):
     logger.info(f"checking if username {user_name} with userID {user_id} changed")
     try:
-        user = api.user(user_id=user_id).info_full()
+        user = api.user(username=user_name).info_full()
     except KeyError as ke:
         if str(ke) == 'userMap':
             logger.info('user cannot be found with davidtheatre.')
@@ -501,13 +513,16 @@ def main_info():
     session_timestamp = datetime.now().isoformat()
     ig_accounts_to_verify = dict()
     ig_accounts_to_verify["date"] = session_timestamp
-
+    logger.info(f'session_timestamp: {session_timestamp}')
     for user_id, user_name in dict_users.items():
         if id == 5000:
             break
         id += 1
+        logger.info(f'==================================')
         infos = {"session_timestamp": str(session_timestamp)}
+        logger.info(f'Retrieving TikTok info of {user_name}, {user_id}')
         tt_infos, found = tiktok_info(user_name, user_id)
+        logger.info(f'Retrieved TikTok info of {user_name}, {user_id}')
         username_IG = tt_infos.get('ins_id')
         ig_infos = None
         if username_IG is None or username_IG == "":
@@ -515,15 +530,18 @@ def main_info():
         else:
             done = True
         if done and username_IG:
-            ig_infos = getIGFollowerCount(username_IG)
             logger.info(f'Need to retrieve followers of {username_IG}')
+            ig_infos = getIGFollowerCount(username_IG)
+            logger.info(f'Retrieved IG followers of {username_IG}')
 
         infos["sampled_timestamp"] = str(datetime.now().isoformat()) # SAMPLED TIMESTAMP
+        logger.info(f'Sampled timestamp: {infos["sampled_timestamp"]}')
         if found:
             try:
                 infos["Tiktok"] = tt_infos
                 infos["Instagram"] = ig_infos
                 response = index_doc(index_name, infos)
+                logger.info('TikTok info found: loaded on ES')
             except Exception as e:
                 logger.info(str(e))
                 # chiedere a Maurizio cosa fare, per il momento continuiamo
@@ -535,6 +553,7 @@ def main_info():
                 infos["Tiktok"] = tt_infos
                 infos["Instagram"] = ig_infos
                 response = index_doc(index_name, infos)
+                logger.info('TikTok info NOT found, loaded on ES')
             except Exception as e:
                 logger.info(str(e))
     ig_accounts_to_verify["ig_accounts"] = list_accounts_to_verify
