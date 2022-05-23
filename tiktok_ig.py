@@ -391,7 +391,7 @@ def handle_banned_words(params_musically, user_name):
 def check_username(params_musically, user_id, user_name):
     logger.info(f"checking if username {user_name} with userID {user_id} changed")
     try:
-        user = api.user(username=user_name).info_full()
+        user = api.user(user_id=user_id).info_full()
     except KeyError as ke:
         if str(ke) == 'userMap':
             logger.info('user cannot be found with davidtheatre.')

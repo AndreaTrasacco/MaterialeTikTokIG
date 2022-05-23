@@ -13,13 +13,14 @@ Il materiale inserito in questa repository serve allo scopo di implementare il c
 Eseguire i seguenti comandi sotto l'utente che dovrà eseguire il campionamento (si suppone installato python3)
 
 - python3 -m pip install sys
-- python3 -m pip install requests --upgrade
-- python3 -m pip install elasticsearch
-- python3 -m pip install TikTokApi
-- python3 -m pip install instagrapi --upgrade
-- python3 -m pip install --upgrade Pillow
+- python3 -m pip install requests==2.27.1
+- python3 -m pip install elasticsearch==8.2.0
+- python3 -m pip install TikTokApi==5.0.0
+- python3 -m pip install instagrapi==1.16.17
+- python3 -m pip install Pillow==9.1.0
 - playwright install (ed eventualmente: playwright install-deps)
-- pip install python-crontab
+- pip install python-crontab==2.6.0
+- copiare i file modifiche_TikTokApi/tiktok.py e modifiche_TikTokApi/user.py nelle apposite cartelle della liberia python TikTokApi (per trovare il percorso in cui questa libreria è stata installata, eseguire $ python3 -m pip show TikTokApi)
 
 ## Istruzioni:
 
