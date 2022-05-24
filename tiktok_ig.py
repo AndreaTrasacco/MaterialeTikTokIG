@@ -462,9 +462,10 @@ def tiktok_info(user_name, user_id):
                             break
                     continue
                 for user in j['user_list']:
-                    infos = user['user_info']
-                    if infos['uid'] == user_id:
+                    #infos = user['user_info']
+                    if user['user_info']['uid'] == user_id:
                         found = True
+                        infos = user['user_info']
                         sampling_timestamp = datetime.now().isoformat()
                         break
                 params_musically['cursor'] = j['cursor']
